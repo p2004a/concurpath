@@ -9,11 +9,13 @@ void simulation::thread_func() {
     while (true) {
         int steps;
         pthread_mutex_lock(&steps_mutex);
+        done = true;
         while (steps_shared == 0) {
             pthread_cond_wait(&step_cv, &steps_mutex);
         }
         steps = steps_shared;
         steps_shared = 0;
+        done = false;
         pthread_mutex_unlock(&steps_mutex);
 
         if (steps == -1) {

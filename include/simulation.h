@@ -20,7 +20,7 @@ class simulation {
     pthread_t thread;
     pthread_mutex_t steps_mutex;
     pthread_cond_t step_cv;
-
+    volatile bool done;
     volatile int steps_shared;
 
     typedef thrust::host_vector<thrust::pair<float, float> >::const_iterator const_iterator;
@@ -78,5 +78,12 @@ class simulation {
         steps_shared = steps;
         pthread_cond_signal(&step_cv);
         pthread_mutex_unlock(&steps_mutex);
+    }
+
+    bool is_done() {
+        pthread_mutex_lock(&steps_mutex);
+        bool local_done = done;
+        pthread_mutex_unlock(&steps_mutex);
+        return local_done;
     }
 };
