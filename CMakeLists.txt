@@ -33,6 +33,7 @@ include_directories(
 set(PROJECT_SRC_FILES
     src/main.cpp
     src/display.cpp
+    src/map.cpp
     )
 
 add_executable(${BINARY_NAME} ${PROJECT_SRC_FILES})
