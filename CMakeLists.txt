@@ -26,6 +26,11 @@ endif(OPENMP_FOUND)
 find_package(Threads REQUIRED)
 list(APPEND ${PROJECT_NAME}_LINK_LIBS ${CMAKE_THREAD_LIBS_INIT})
 
+find_package(CUDA REQUIRED)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30)
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_35,code=sm_35)
+
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     )
@@ -34,8 +39,9 @@ set(PROJECT_SRC_FILES
     src/main.cpp
     src/display.cpp
     src/map.cpp
+    src/simulation.cu
     )
 
-add_executable(${BINARY_NAME} ${PROJECT_SRC_FILES})
+cuda_add_executable(${BINARY_NAME} ${PROJECT_SRC_FILES})
 
 target_link_libraries(${BINARY_NAME} ${${PROJECT_NAME}_LINK_LIBS})

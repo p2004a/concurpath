@@ -33,7 +33,7 @@ class map {
         return scale;
     }
 
-    bool const* operator[] (int idx) {
+    bool const* operator[] (int idx) const {
         return data.get() + idx * width;
     }
 };
