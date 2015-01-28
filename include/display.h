@@ -9,6 +9,8 @@ class display {
     ALLEGRO_EVENT_QUEUE *event_queue;
 
   public:
+    static void init();
+
     display(int width_, int height_);
     display (display const&) = delete;
     display & operator=(display const&) = delete;

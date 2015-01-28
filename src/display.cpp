@@ -7,7 +7,7 @@
 
 #include "display.h"
 
-display::display(int width_, int height_) : dis(nullptr), event_queue(nullptr) {
+void display::init() {
     if(!al_init()) {
         throw std::runtime_error("failed to initialize allegro");
     }
@@ -33,7 +33,9 @@ display::display(int width_, int height_) : dis(nullptr), event_queue(nullptr) {
     if (!al_install_keyboard()) {
         throw std::runtime_error("failed to initialize the keyboard");
     }
+}
 
+display::display(int width_, int height_) : dis(nullptr), event_queue(nullptr) {
     al_set_new_display_option(ALLEGRO_VSYNC, 1, ALLEGRO_SUGGEST);
     al_set_new_display_option(ALLEGRO_SAMPLE_BUFFERS, 1, ALLEGRO_SUGGEST);
     al_set_new_display_option(ALLEGRO_SAMPLES, 4, ALLEGRO_SUGGEST);
