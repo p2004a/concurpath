@@ -14,6 +14,7 @@
 
 class simulation {
     thrust::host_vector<thrust::pair<float, float> > units;
+    thrust::host_vector<thrust::pair<float, float> > ends;
     thrust::host_vector<bool> map;
     int map_width, map_height;
 
@@ -22,6 +23,8 @@ class simulation {
     pthread_cond_t step_cv;
     volatile bool done;
     volatile int steps_shared;
+
+    volatile bool updated_ends;
 
     typedef thrust::host_vector<thrust::pair<float, float> >::const_iterator const_iterator;
 
@@ -36,7 +39,13 @@ class simulation {
 
     template<typename It, typename Arr2D>
     simulation(It begin, It end, Arr2D const& arr, int w, int h)
-      : units(begin, end), map(w * h), map_width(w), map_height(h), steps_shared(0) {
+      : units(begin, end), map(w * h), map_width(w), map_height(h), steps_shared(0), updated_ends(true) {
+
+        ends.resize(units.size());
+        for (unsigned i = 0; i < units.size(); ++i) {
+            ends[i].first = -1;
+        }
+
         #pragma omp parallel for
         for (int y = 0; y < h; ++y) {
             for (int x = 0; x < w; ++x) {
@@ -85,5 +94,10 @@ class simulation {
         bool local_done = done;
         pthread_mutex_unlock(&steps_mutex);
         return local_done;
+    }
+
+    void set_end(int i, std::pair<float, float> p) {
+        ends[i] = p;
+        updated_ends = true;
     }
 };
