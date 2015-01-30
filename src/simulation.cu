@@ -12,9 +12,36 @@ __global__ void update_units_pos(thrust::pair<float, float> *units_ptr, thrust::
         return;
     }
 
-    thrust::pair<float, float> new_pos;
+    thrust::pair<float, float> new_pos, pos, f;
 
-    new_pos = ends_ptr[idx];
+    pos = units_ptr[idx];
+
+    {
+        const float end_force = 2.0;
+        float x = ends_ptr[idx].first - pos.first;
+        float y = ends_ptr[idx].second - pos.second;
+        float end_d_reciprocal = rsqrt(x * x + y * y);
+        f.first = x * end_d_reciprocal * end_force;
+        f.second = y * end_d_reciprocal * end_force;
+    }
+
+    for (int i = 0; i < n; ++i) {
+        if (i != idx) {
+            float x = units_ptr[i].first - pos.first;
+            float y = units_ptr[i].second - pos.second;
+            float d_reciprocal = rsqrt(x * x + y * y);
+            float force = d_reciprocal - 0.3;
+            if (force > 0) {
+                f.first += -x * d_reciprocal * force;
+                f.second += -y * d_reciprocal * force;
+            }
+        }
+    }
+
+    float vec_d_reciprocal = rsqrt(f.first * f.first + f.second * f.second);
+
+    new_pos.first = pos.first + f.first * vec_d_reciprocal * 0.002;
+    new_pos.second = pos.second + f.second * vec_d_reciprocal * 0.002;
 
     __syncthreads();
     units_ptr[idx] = new_pos;

@@ -28,6 +28,7 @@ int main(int argc, char *argv[]) {
     display dis(800, 600);
 
     auto green = al_map_rgb(0, 255, 0);
+    auto yellow = al_map_rgb(255, 255, 0);
 
     random_device rd;
     default_random_engine re(rd());
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    int n = 20;
+    int n = 30;
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
@@ -84,11 +85,14 @@ int main(int argc, char *argv[]) {
         float scale = m.get_scale();
 
         m.draw();
-        for (auto p: units) {
+        for (int i = 0; i < n; ++i) {
+            auto p = units[i];
+            auto e = ends[i];
             if (0.2 * scale < 1.0) {
                 al_draw_pixel(p.first * scale, p.second * scale, green);
             } else {
                 al_draw_filled_circle(p.first * scale, p.second * scale, 0.2 * scale, green);
+                al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
             }
         }
     });
