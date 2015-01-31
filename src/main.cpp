@@ -1,10 +1,8 @@
-#include <thread>
-#include <chrono>
-#include <string>
-#include <memory>
+#include <cmath>
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <stdexcept>
 
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
@@ -46,7 +44,7 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    int n = 30;
+    int n = 64;
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
@@ -69,14 +67,19 @@ int main(int argc, char *argv[]) {
                   && (int)units[i].second == (int)ends[i].second) {
                     {
                         auto pos = gen_rand_pos();
-
                         s.set_end(i, pos);
                         ends[i] = pos;
                     }
                 }
             }
 
-            s.run(20);
+            for (int i = 0; i < n; ++i) {
+                if (!isnormal(units[i].first) || !isnormal(units[i].second)) {
+                    throw logic_error("one of units doesnt have correct coordinares");
+                }
+            }
+
+            s.run(100);
         } else {
             printf("dropped frame\n");
         }
