@@ -49,28 +49,28 @@ __global__ void update_units_pos(
         for (int dy = -1; dy <= 1; ++dy) {
             for (int dx = -1; dx <= 1; ++dx) {
                 if (wall[dy + 1][dx + 1]) {
-                    float force_x = 0.0;
-                    float force_y = 0.0;
-                    float wall_center_x = floor(pos.first + dx) + 0.5;
-                    float wall_center_y = floor(pos.second + dy) + 0.5;
+                    float wall_dx = 0.0;
+                    float wall_dy = 0.0;
+                    if (dx) {
+                        float wall_center_x = floor(pos.first + dx) + 0.5;
+                        wall_dx = pos.first - (wall_center_x - dx * 0.5);
+                    }
+                    if (dy) {
+                        float wall_center_y = floor(pos.second + dy) + 0.5;
+                        wall_dy = pos.second - (wall_center_y - dy * 0.5);
+                    }
                     if (dx && dy) {
                         if (!wall[1][dx+1] && !wall[dy+1][1]) {
-                            float x = (wall_center_x - dx * 0.5) - pos.first;
-                            float y = (wall_center_y - dy * 0.5) - pos.second;
-                            float d = hypot(x, y);
+                            float d = hypot(wall_dx, wall_dy);
                             float force = 1 / (d * d) - 1.0;
-                            force_x = (-x / d) * force;
-                            force_y = (-y / d) * force;
+                            f.first += (wall_dx / d) * force;
+                            f.second += (wall_dy / d) * force;
                         }
                     } else if (dx) {
-                        float wall_dx = pos.first - (wall_center_x - dx * 0.5);
-                        force_x = copysign(1 / (wall_dx * wall_dx) - 1.0, wall_dx);
+                        f.first += copysign(1 / (wall_dx * wall_dx) - 1.0, wall_dx);
                     } else if (dy) {
-                        float wall_dy = pos.second - (wall_center_y - dy * 0.5);
-                        force_y = copysign(1 / (wall_dy * wall_dy) - 1.0, wall_dy);
+                        f.second += copysign(1 / (wall_dy * wall_dy) - 1.0, wall_dy);
                     }
-                    f.first += force_x;
-                    f.second += force_y;
                 }
             }
         }
