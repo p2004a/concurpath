@@ -56,10 +56,16 @@ class simulation {
         pthread_mutex_init(&steps_mutex, NULL);
         pthread_cond_init(&step_cv, NULL);
 
+        pthread_mutex_lock(&steps_mutex);
+
         int res = pthread_create(&thread, NULL, &simulation::thread_func_helper, (void *)this);
         if (res) {
+            pthread_mutex_unlock(&steps_mutex);
             throw std::runtime_error("failed to create thread");
         }
+
+        pthread_cond_wait(&step_cv, &steps_mutex);
+        pthread_mutex_unlock(&steps_mutex);
     }
 
     ~simulation() {

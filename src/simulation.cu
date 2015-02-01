@@ -108,6 +108,10 @@ void simulation::thread_func() {
     thrust::device_vector<thrust::pair<float, float> > d_ends;
     thrust::device_vector<bool> d_map(map.begin(), map.end());
 
+    pthread_mutex_lock(&steps_mutex);
+    pthread_cond_signal(&step_cv);
+    pthread_mutex_unlock(&steps_mutex);
+
     while (true) {
         int steps;
         pthread_mutex_lock(&steps_mutex);
