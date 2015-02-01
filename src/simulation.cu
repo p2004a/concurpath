@@ -63,8 +63,10 @@ __global__ void update_units_pos(
                         if (!wall[1][dx+1] && !wall[dy+1][1]) {
                             float d = hypot(wall_dx, wall_dy);
                             float force = 1 / (d * d) - 1.0;
-                            f.first += (wall_dx / d) * force;
-                            f.second += (wall_dy / d) * force;
+                            if (force > 0.0) {
+                                f.first += (wall_dx / d) * force;
+                                f.second += (wall_dy / d) * force;
+                            }
                         }
                     } else if (dx) {
                         f.first += copysign(1 / (wall_dx * wall_dx) - 1.0, wall_dx);
