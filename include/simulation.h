@@ -21,6 +21,7 @@ class simulation {
     pthread_t thread;
     pthread_mutex_t steps_mutex;
     pthread_cond_t step_cv;
+    unsigned long long kernel_time;
     volatile bool done;
     volatile int steps_shared;
 
@@ -86,6 +87,10 @@ class simulation {
 
     const_iterator end() const {
         return units.end();
+    }
+
+    unsigned long long last_kernel_time() const {
+        return kernel_time;
     }
 
     void run(int steps) {

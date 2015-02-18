@@ -145,10 +145,19 @@ void simulation::thread_func() {
         dim3 grid((n + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK);
         dim3 block(THREADS_PER_BLOCK);
 
+        struct timespec t1, t2;
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+
         for (int z = 0; z < steps; ++z) {
             update_units_pos<<<grid, block>>>(
                 units_ptr, ends_ptr, n, map_ptr, map_width, map_height);
         }
+
+        cudaDeviceSynchronize();
+
+        clock_gettime(CLOCK_MONOTONIC, &t2);
+        unsigned long long diff = (long long)(t2.tv_sec - t1.tv_sec) * 1000000000LL + (t2.tv_nsec - t1.tv_nsec);
+        kernel_time = diff / steps;
 
         thrust::copy(d_units.begin(), d_units.end(), units.begin());
     }

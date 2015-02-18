@@ -71,10 +71,12 @@ int main(int argc, char *argv[]) {
 
     fps_counter fps_display;
     fps_counter fps_simulation(300);
+    unsigned long long last_kernel_time = 0;
     dis.run([&] (int width, int height) {
         fps_display.tick();
         if (s.is_done()) {
             fps_simulation.tick();
+            last_kernel_time = s.last_kernel_time();
             units.clear();
             std::copy(s.begin(), s.end(), back_inserter(units));
 
@@ -117,6 +119,7 @@ int main(int argc, char *argv[]) {
 
         al_draw_textf(font_average_mono, white, width - 10, 10, ALLEGRO_ALIGN_RIGHT, "%.2f fps", fps_display.get());
         al_draw_textf(font_average_mono, white, width - 10, 40, ALLEGRO_ALIGN_RIGHT, "%.2f sps", fps_simulation.get() * spf);
+        al_draw_textf(font_average_mono, white, width - 10, 70, ALLEGRO_ALIGN_RIGHT, "%.2fus", (double)last_kernel_time / 1000);
     });
     return 0;
 }
