@@ -6,6 +6,8 @@
 
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_primitives.h>
+#include <allegro5/allegro_font.h>
+#include <allegro5/allegro_ttf.h>
 
 #include "display.h"
 #include "map.h"
@@ -14,8 +16,15 @@
 
 using namespace std;
 
+
+
 int main(int argc, char *argv[]) {
     display::init();
+
+    auto font_average_mono = al_load_ttf_font("fonts/AverageMono.ttf", -20, 0);
+    if (font_average_mono == NULL) {
+        throw runtime_error("Cannot load font fonts/AverageMono.ttf");
+    }
 
     if (argc < 2) {
         fprintf(stderr, "USAGE\n\t%s map.png\n", argv[0]);
@@ -28,6 +37,7 @@ int main(int argc, char *argv[]) {
 
     auto green = al_map_rgb(0, 255, 0);
     auto yellow = al_map_rgb(255, 255, 0);
+    auto white = al_map_rgb(255, 255, 255);
 
     random_device rd;
     default_random_engine re(rd());
@@ -45,7 +55,8 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    int n = 32;
+    const int n = 32;
+    const int spf = 100; // simulations pef frame
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
@@ -58,10 +69,12 @@ int main(int argc, char *argv[]) {
         ends[i] = pos;
     }
 
-    fps_counter fps;
+    fps_counter fps_display;
+    fps_counter fps_simulation(300);
     dis.run([&] (int width, int height) {
-        fps.tick();
+        fps_display.tick();
         if (s.is_done()) {
+            fps_simulation.tick();
             units.clear();
             std::copy(s.begin(), s.end(), back_inserter(units));
 
@@ -82,7 +95,7 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            s.run(100);
+            s.run(spf);
         } else {
             printf("dropped frame\n");
         }
@@ -102,7 +115,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        printf("%2.2f\n", fps.get());
+        al_draw_textf(font_average_mono, white, width - 10, 10, ALLEGRO_ALIGN_RIGHT, "%.2f fps", fps_display.get());
+        al_draw_textf(font_average_mono, white, width - 10, 40, ALLEGRO_ALIGN_RIGHT, "%.2f sps", fps_simulation.get() * spf);
     });
     return 0;
 }

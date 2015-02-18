@@ -4,6 +4,8 @@
 #include <allegro5/allegro_primitives.h>
 #include <allegro5/allegro_native_dialog.h>
 #include <allegro5/allegro_image.h>
+#include <allegro5/allegro_font.h>
+#include <allegro5/allegro_ttf.h>
 
 #include "display.h"
 
@@ -24,6 +26,12 @@ void display::init() {
 
     if (!al_init_primitives_addon()) {
         throw std::runtime_error("failed to initialize allegro primitives");
+    }
+
+    al_init_font_addon();
+
+    if (!al_init_ttf_addon()) {
+        throw std::runtime_error("failed to initialize allegro ttf addon");
     }
 
     if (!al_install_mouse()) {

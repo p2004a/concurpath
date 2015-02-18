@@ -46,3 +46,7 @@ set(PROJECT_SRC_FILES
 cuda_add_executable(${BINARY_NAME} ${PROJECT_SRC_FILES})
 
 target_link_libraries(${BINARY_NAME} ${${PROJECT_NAME}_LINK_LIBS})
+
+file(COPY
+    ${CMAKE_CURRENT_SOURCE_DIR}/fonts
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)
