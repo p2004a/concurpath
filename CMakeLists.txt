@@ -39,6 +39,7 @@ set(PROJECT_SRC_FILES
     src/main.cpp
     src/display.cpp
     src/map.cpp
+    src/fpscounter.cpp
     src/simulation.cu
     )
 

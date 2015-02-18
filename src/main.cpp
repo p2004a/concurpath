@@ -9,6 +9,7 @@
 
 #include "display.h"
 #include "map.h"
+#include "fpscounter.h"
 #include "simulation.h"
 
 using namespace std;
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    int n = 64;
+    int n = 32;
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
@@ -57,7 +58,9 @@ int main(int argc, char *argv[]) {
         ends[i] = pos;
     }
 
+    fps_counter fps;
     dis.run([&] (int width, int height) {
+        fps.tick();
         if (s.is_done()) {
             units.clear();
             std::copy(s.begin(), s.end(), back_inserter(units));
@@ -98,6 +101,8 @@ int main(int argc, char *argv[]) {
                 al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
             }
         }
+
+        printf("%2.2f\n", fps.get());
     });
     return 0;
 }
