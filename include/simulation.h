@@ -12,11 +12,14 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+#define MAP_SECTOR_SIZE 4
+
 class simulation {
     thrust::host_vector<thrust::pair<float, float> > units;
     thrust::host_vector<thrust::pair<float, float> > ends;
+    thrust::host_vector<thrust::pair<int, int> > sectors_map;
     thrust::host_vector<bool> map;
-    int map_width, map_height;
+    int map_width, map_height, sectors_map_width, sectors_map_height;
 
     pthread_t thread;
     pthread_mutex_t steps_mutex;
@@ -27,7 +30,8 @@ class simulation {
 
     volatile bool updated_ends;
 
-    typedef thrust::host_vector<thrust::pair<float, float> >::const_iterator const_iterator;
+    typedef thrust::host_vector<thrust::pair<float, float> >::const_iterator u_const_iterator;
+    typedef thrust::host_vector<thrust::pair<int, int> >::const_iterator sm_const_iterator;
 
     void thread_func();
     static void* thread_func_helper(void *context) {
@@ -53,6 +57,10 @@ class simulation {
                 map[y * w + x] = arr[y][x];
             }
         }
+
+        sectors_map_width = (map_width + MAP_SECTOR_SIZE - 1) / MAP_SECTOR_SIZE;
+        sectors_map_height = (map_height + MAP_SECTOR_SIZE - 1) / MAP_SECTOR_SIZE;
+        sectors_map.resize(sectors_map_width * sectors_map_height);
 
         pthread_mutex_init(&steps_mutex, NULL);
         pthread_cond_init(&step_cv, NULL);
@@ -81,12 +89,28 @@ class simulation {
         pthread_cond_destroy(&step_cv);
     }
 
-    const_iterator begin() const {
+    u_const_iterator u_begin() const {
         return units.begin();
     }
 
-    const_iterator end() const {
+    u_const_iterator u_end() const {
         return units.end();
+    }
+
+    sm_const_iterator sm_begin() const {
+        return sectors_map.begin();
+    }
+
+    sm_const_iterator sm_end() const {
+        return sectors_map.end();
+    }
+
+    int sm_width() const {
+        return sectors_map_width;
+    }
+
+    int sm_height() const {
+        return sectors_map_height;
     }
 
     unsigned long long last_kernel_time() const {

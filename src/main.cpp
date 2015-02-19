@@ -16,14 +16,17 @@
 
 using namespace std;
 
-
-
 int main(int argc, char *argv[]) {
     display::init();
 
-    auto font_average_mono = al_load_ttf_font("fonts/AverageMono.ttf", -20, 0);
-    if (font_average_mono == NULL) {
-        throw runtime_error("Cannot load font fonts/AverageMono.ttf");
+    auto font_average_mono_20 = al_load_ttf_font("fonts/AverageMono.ttf", -20, 0);
+    if (font_average_mono_20 == NULL) {
+        throw runtime_error("Cannot load font fonts/AverageMono.ttf size 20");
+    }
+
+    auto font_average_mono_12 = al_load_ttf_font("fonts/AverageMono.ttf", -14, 0);
+    if (font_average_mono_12 == NULL) {
+        throw runtime_error("Cannot load font fonts/AverageMono.ttf size 12");
     }
 
     if (argc < 2) {
@@ -38,6 +41,7 @@ int main(int argc, char *argv[]) {
     auto green = al_map_rgb(0, 255, 0);
     auto yellow = al_map_rgb(255, 255, 0);
     auto white = al_map_rgb(255, 255, 255);
+    auto red = al_map_rgb(255, 0, 0);
 
     random_device rd;
     default_random_engine re(rd());
@@ -55,13 +59,14 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    const int n = 32;
-    const int spf = 100; // simulations pef frame
+    const int n = 10000;
+    const int spf = 10; // simulations pef frame
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
 
     simulation s(units.begin(), units.end(), m, m.get_width(), m.get_height());
+    vector<thrust::pair<int, int>> sectors_map(s.sm_width() * s.sm_height());
 
     for (int i = 0; i < n; ++i) {
         auto pos = gen_rand_pos();
@@ -78,7 +83,9 @@ int main(int argc, char *argv[]) {
             fps_simulation.tick();
             last_kernel_time = s.last_kernel_time();
             units.clear();
-            std::copy(s.begin(), s.end(), back_inserter(units));
+            sectors_map.clear();
+            std::copy(s.u_begin(), s.u_end(), back_inserter(units));
+            std::copy(s.sm_begin(), s.sm_end(), back_inserter(sectors_map));
 
             for (int i = 0; i < n; ++i) {
                 if ((int)units[i].first == (int)ends[i].first
@@ -113,13 +120,19 @@ int main(int argc, char *argv[]) {
                 al_draw_pixel(p.first * scale, p.second * scale, green);
             } else {
                 al_draw_filled_circle(p.first * scale, p.second * scale, 0.2 * scale, green);
-                al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
+                //al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
             }
         }
 
-        al_draw_textf(font_average_mono, white, width - 10, 10, ALLEGRO_ALIGN_RIGHT, "%.2f fps", fps_display.get());
-        al_draw_textf(font_average_mono, white, width - 10, 40, ALLEGRO_ALIGN_RIGHT, "%.2f sps", fps_simulation.get() * spf);
-        al_draw_textf(font_average_mono, white, width - 10, 70, ALLEGRO_ALIGN_RIGHT, "%.2fus", (double)last_kernel_time / 1000);
+        for (int y = 0; y < s.sm_height(); ++y) {
+            for (int x = 0; x < s.sm_width(); ++x) {
+                al_draw_textf(font_average_mono_12, red, x * scale * MAP_SECTOR_SIZE, y * scale * MAP_SECTOR_SIZE, ALLEGRO_ALIGN_LEFT, "%d", sectors_map[y * s.sm_width() + x].second);
+            }
+        }
+
+        al_draw_textf(font_average_mono_20, white, width - 10, 10, ALLEGRO_ALIGN_RIGHT, "%.2f fps", fps_display.get());
+        al_draw_textf(font_average_mono_20, white, width - 10, 40, ALLEGRO_ALIGN_RIGHT, "%.2f sps", fps_simulation.get() * spf);
+        al_draw_textf(font_average_mono_20, white, width - 10, 70, ALLEGRO_ALIGN_RIGHT, "%.2fus", (double)last_kernel_time / 1000);
     });
     return 0;
 }
