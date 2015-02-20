@@ -54,15 +54,30 @@ void map::draw() {
 
         al_clear_to_color(black);
 
+        unique_ptr<ALLEGRO_VERTEX[]> map_pixels = unique_ptr<ALLEGRO_VERTEX[]>(new ALLEGRO_VERTEX[height * width * 6]);
+
+        #pragma omp parallel for
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                al_draw_filled_rectangle(
-                    x * scale, y * scale,
-                    x * scale + scale, y * scale + scale,
-                    (*this)[y][x] ? lightgrey : black
-                );
+                int i = (y * width * 6) + (x * 6);
+                ALLEGRO_COLOR c = (*this)[y][x] ? lightgrey : black;
+                map_pixels[i+0].x = x * scale;
+                map_pixels[i+0].y = y * scale;
+                map_pixels[i+0].color = c;
+                map_pixels[i+1].x = x * scale + scale;
+                map_pixels[i+1].y = y * scale;
+                map_pixels[i+1].color = c;
+                map_pixels[i+2].x = x * scale;
+                map_pixels[i+2].y = y * scale + scale;
+                map_pixels[i+2].color = c;
+                map_pixels[i+3].x = x * scale + scale;
+                map_pixels[i+3].y = y * scale + scale;
+                map_pixels[i+3].color = c;
+                map_pixels[i+4] = map_pixels[i+1];
+                map_pixels[i+5] = map_pixels[i+2];
             }
         }
+        al_draw_prim(map_pixels.get(), NULL, NULL, 0, height * width * 6, ALLEGRO_PRIM_TRIANGLE_LIST);
 
         if (scale > 15) {
             for (int y = 0; y <= height; ++y) {
