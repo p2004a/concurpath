@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    const int n = 64;
+    const int n = 256;
     const int spf = 10; // simulations pef frame
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
@@ -72,6 +72,11 @@ int main(int argc, char *argv[]) {
         auto pos = gen_rand_pos();
         s.set_end(i, pos);
         ends[i] = pos;
+    }
+
+    unique_ptr<ALLEGRO_VERTEX[]> unit_pixels(nullptr);
+    if (n >= 4000) {
+        unit_pixels = unique_ptr<ALLEGRO_VERTEX[]>(new ALLEGRO_VERTEX[n]);
     }
 
     fps_counter fps_display;
@@ -106,25 +111,36 @@ int main(int argc, char *argv[]) {
             }
 
             s.run(spf);
-        } else {
-            printf("dropped frame\n");
         }
 
         m.set_screen_size(width, height);
         float scale = m.get_scale();
 
         m.draw();
-        for (int i = 0; i < n; ++i) {
-            auto p = units[i];
-            auto e = ends[i];
-            if (0.2 * scale < 1.0) {
-                al_draw_pixel(p.first * scale, p.second * scale, green);
-            } else {
-                al_draw_filled_circle(p.first * scale, p.second * scale, 0.2 * scale, green);
-                if (n <= 64) {
-                    al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
+        if (n < 4000) {
+            for (int i = 0; i < n; ++i) {
+                auto p = units[i];
+                auto e = ends[i];
+                if (0.2 * scale < 1.0) {
+                    al_draw_pixel(p.first * scale, p.second * scale, green);
+                } else {
+                    al_draw_filled_circle(p.first * scale, p.second * scale, 0.2 * scale, green);
+                    if (n <= 64) {
+                        al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
+                    }
                 }
             }
+        } else {
+            // /#pragma omp parallel for
+            for (int i = 0; i < n; ++i) {
+                auto const& p = units[i];
+                auto & pixel = unit_pixels[i];
+                pixel.z = 0;
+                pixel.x = p.first * scale;
+                pixel.y = p.second * scale;
+                pixel.color = green;
+            }
+            al_draw_prim(unit_pixels.get(), NULL, NULL, 0, n, ALLEGRO_PRIM_POINT_LIST);
         }
 
         if (s.sm_height() < 25 && s.sm_width() < 25) {
