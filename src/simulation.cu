@@ -22,7 +22,9 @@ __global__ void update_units_pos(
     unsigned n,
     bool *map,
     int width,
-    int height
+    int height,
+    thrust::pair<int, int> *sectors_map,
+    int *indexes
 ) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) {
@@ -90,22 +92,37 @@ __global__ void update_units_pos(
 
     // force from other units
     {
-        /*int sector_x = (int)pos.first / 4;
-        int sector_y = (int)pos.second / 4;
-        int max_sector_y = (height + 3) / 4;
-        int max_sector_x = (width + 3) / 4;
+        int sector_x = (int)pos.first / MAP_SECTOR_SIZE;
+        int sector_y = (int)pos.second / MAP_SECTOR_SIZE;
+        int max_sector_width = (width + 3) / MAP_SECTOR_SIZE;
+        int max_sector_height = (height + 3) / MAP_SECTOR_SIZE;
+        thrust::pair<int, int> sectors[3][3];
         for (int dy = -1; dy <= 1; ++dy) {
-            
-        }*/
-        for (int i = 0; i < n; ++i) {
-            if (i != idx) {
-                float x = units_ptr[i].first - pos.first;
-                float y = units_ptr[i].second - pos.second;
-                float d_reciprocal = rsqrt(x * x + y * y);
-                float force = d_reciprocal - 0.3;
-                if (force > 0) {
-                    f.first += -x * d_reciprocal * force;
-                    f.second += -y * d_reciprocal * force;
+            for (int dx = -1; dx <= 1; ++dx) {
+                sectors[dy + 1][dx + 1].first = -1;
+                int pos_x = sector_x + dx;
+                int pos_y = sector_y + dy;
+                if (pos_x >= 0 && pos_x < max_sector_width && pos_y >= 0 && pos_y < max_sector_height) {
+                    sectors[dy + 1][dx + 1] = sectors_map[pos_y * max_sector_width + pos_x];
+                }
+            }
+        }
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                if (sectors[dy + 1][dx + 1].first != -1) {
+                    for (int i = 0; i < sectors[dy + 1][dx + 1].second; ++i) {
+                        int j = indexes[sectors[dy + 1][dx + 1].first + i];
+                        if (j != idx) {
+                            float x = units_ptr[j].first - pos.first;
+                            float y = units_ptr[j].second - pos.second;
+                            float d_reciprocal = rsqrt(x * x + y * y);
+                            float force = d_reciprocal - 0.3;
+                            if (force > 0) {
+                                f.first += -x * d_reciprocal * force;
+                                f.second += -y * d_reciprocal * force;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -114,7 +131,7 @@ __global__ void update_units_pos(
     // displacement
     {
         float vec_d_reciprocal = rsqrt(f.first * f.first + f.second * f.second);
-        const float absolute_displacement = 0.002;
+        const float absolute_displacement = 0.007;
         new_pos.first = pos.first + f.first * vec_d_reciprocal * absolute_displacement;
         new_pos.second = pos.second + f.second * vec_d_reciprocal * absolute_displacement;
     }
@@ -158,7 +175,7 @@ void simulation::thread_func() {
     thrust::device_vector<thrust::pair<float, float> > d_units(units.begin(), units.end());
     thrust::device_vector<thrust::pair<float, float> > d_ends;
     thrust::device_vector<thrust::pair<int, int> > d_sectors_map(sectors_map.size());
-    thrust::device_vector<int> sectors(n), units_indexes(n), sectors_indexes(n);
+    thrust::device_vector<int> sectors(n), units_indexes(n), sectors_indexes(n+1);
     thrust::device_vector<bool> d_map(map.begin(), map.end());
 
     pthread_mutex_lock(&steps_mutex);
@@ -213,11 +230,13 @@ void simulation::thread_func() {
                 sectors_indexes_ptr, sectors_ptr, after_unique_sectors, sectors_map_ptr
             );
 
+            int *units_indexes_ptr = thrust::raw_pointer_cast(&units_indexes[0]);
+
             dim3 grid_units((n + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK);
             dim3 block_units(THREADS_PER_BLOCK);
 
             update_units_pos<<<grid_units, block_units>>>(
-                units_ptr, ends_ptr, n, map_ptr, map_width, map_height);
+                units_ptr, ends_ptr, n, map_ptr, map_width, map_height, sectors_map_ptr, units_indexes_ptr);
         }
 
         cudaDeviceSynchronize();

@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    const int n = 10000;
+    const int n = 64;
     const int spf = 10; // simulations pef frame
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
@@ -100,7 +100,8 @@ int main(int argc, char *argv[]) {
 
             for (int i = 0; i < n; ++i) {
                 if (!isnormal(units[i].first) || !isnormal(units[i].second)) {
-                    throw logic_error("one of units doesnt have correct coordinares");
+                    printf("%f %f\n", units[i].first, units[i].second);
+                    throw logic_error("one of units doesnt have correct coordinares ");
                 }
             }
 
@@ -120,13 +121,17 @@ int main(int argc, char *argv[]) {
                 al_draw_pixel(p.first * scale, p.second * scale, green);
             } else {
                 al_draw_filled_circle(p.first * scale, p.second * scale, 0.2 * scale, green);
-                //al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
+                if (n <= 64) {
+                    al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
+                }
             }
         }
 
-        for (int y = 0; y < s.sm_height(); ++y) {
-            for (int x = 0; x < s.sm_width(); ++x) {
-                al_draw_textf(font_average_mono_12, red, x * scale * MAP_SECTOR_SIZE, y * scale * MAP_SECTOR_SIZE, ALLEGRO_ALIGN_LEFT, "%d", sectors_map[y * s.sm_width() + x].second);
+        if (s.sm_height() < 25 && s.sm_width() < 25) {
+            for (int y = 0; y < s.sm_height(); ++y) {
+                for (int x = 0; x < s.sm_width(); ++x) {
+                    al_draw_textf(font_average_mono_12, red, x * scale * MAP_SECTOR_SIZE, y * scale * MAP_SECTOR_SIZE, ALLEGRO_ALIGN_LEFT, "%d", sectors_map[y * s.sm_width() + x].second);
+                }
             }
         }
 
