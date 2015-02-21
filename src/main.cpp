@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
 
     display dis(800, 600);
 
-    auto green = al_map_rgb(0, 255, 0);
+    auto green = al_map_rgb(0, 200, 0);
     auto yellow = al_map_rgb(255, 255, 0);
     auto white = al_map_rgb(255, 255, 255);
     auto red = al_map_rgb(255, 0, 0);
@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
                 pixel.y = p.second * scale;
                 pixel.color = green;
             }
-            //al_draw_prim(unit_pixels.get(), NULL, NULL, 0, n, ALLEGRO_PRIM_POINT_LIST);
+            al_draw_prim(unit_pixels.get(), NULL, NULL, 0, n, ALLEGRO_PRIM_POINT_LIST);
         }
 
         if (s.sm_height() < 25 && s.sm_width() < 25) {
