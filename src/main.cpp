@@ -1,4 +1,5 @@
 #include <cmath>
+#include <string>
 #include <vector>
 #include <algorithm>
 #include <random>
@@ -29,12 +30,12 @@ int main(int argc, char *argv[]) {
         throw runtime_error("Cannot load font fonts/AverageMono.ttf size 12");
     }
 
-    if (argc < 2) {
-        fprintf(stderr, "USAGE\n\t%s map.png\n", argv[0]);
+    if (argc < 4) {
+        fprintf(stderr, "USAGE\n\t%s n spf map.png\n", argv[0]);
         return 1;
     }
 
-    map m(argv[1]);
+    map m(argv[3]);
 
     display dis(800, 600);
 
@@ -59,8 +60,8 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    const int n = 1024;
-    const int spf = 10; // simulations pef frame
+    auto n = stoul(argv[1]);
+    auto spf = stoul(argv[2]); // simulations pef frame
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
@@ -68,7 +69,7 @@ int main(int argc, char *argv[]) {
     simulation s(units.begin(), units.end(), m, m.get_width(), m.get_height());
     vector<thrust::pair<int, int>> sectors_map(s.sm_width() * s.sm_height());
 
-    for (int i = 0; i < n; ++i) {
+    for (unsigned i = 0; i < n; ++i) {
         auto pos = gen_rand_pos();
         s.set_end(i, pos);
         ends[i] = pos;
@@ -92,7 +93,7 @@ int main(int argc, char *argv[]) {
             std::copy(s.u_begin(), s.u_end(), back_inserter(units));
             std::copy(s.sm_begin(), s.sm_end(), back_inserter(sectors_map));
 
-            for (int i = 0; i < n; ++i) {
+            for (unsigned i = 0; i < n; ++i) {
                 if ((int)units[i].first == (int)ends[i].first
                   && (int)units[i].second == (int)ends[i].second) {
                     {
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            for (int i = 0; i < n; ++i) {
+            for (unsigned i = 0; i < n; ++i) {
                 if (!isnormal(units[i].first) || !isnormal(units[i].second)) {
                     printf("%f %f\n", units[i].first, units[i].second);
                     throw logic_error("one of units doesnt have correct coordinares ");
@@ -118,7 +119,7 @@ int main(int argc, char *argv[]) {
 
         m.draw();
         if (n < 4000) {
-            for (int i = 0; i < n; ++i) {
+            for (unsigned i = 0; i < n; ++i) {
                 auto p = units[i];
                 auto e = ends[i];
                 if (0.2 * scale < 1.0) {
@@ -131,7 +132,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            for (int i = 0; i < n; ++i) {
+            for (unsigned i = 0; i < n; ++i) {
                 auto const& p = units[i];
                 auto & pixel = unit_pixels[i];
                 pixel.z = 0;
