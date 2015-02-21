@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cassert>
 #include <time.h>
 
 #include <thrust/host_vector.h>
@@ -53,8 +54,8 @@ __global__ void update_units_pos(
         for (int dy = -1; dy <= 1; ++dy) {
             for (int dx = -1; dx <= 1; ++dx) {
                 wall[dy + 1][dx + 1] = true;
-                int pos_x = pos.first + dx;
-                int pos_y = pos.second + dy;
+                int pos_x = floor(pos.first + dx);
+                int pos_y = floor(pos.second + dy);
                 if (pos_x >= 0 && pos_x < width && pos_y >= 0 && pos_y < height) {
                     wall[dy + 1][dx + 1] = map[pos_y * width + pos_x];
                 }
