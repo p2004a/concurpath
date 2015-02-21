@@ -15,19 +15,17 @@
 #include "fpscounter.h"
 #include "simulation.h"
 
-using namespace std;
-
 int main(int argc, char *argv[]) {
     display::init();
 
     auto font_average_mono_20 = al_load_ttf_font("fonts/AverageMono.ttf", -20, 0);
     if (font_average_mono_20 == NULL) {
-        throw runtime_error("Cannot load font fonts/AverageMono.ttf size 20");
+        throw std::runtime_error("Cannot load font fonts/AverageMono.ttf size 20");
     }
 
     auto font_average_mono_12 = al_load_ttf_font("fonts/AverageMono.ttf", -14, 0);
     if (font_average_mono_12 == NULL) {
-        throw runtime_error("Cannot load font fonts/AverageMono.ttf size 12");
+        throw std::runtime_error("Cannot load font fonts/AverageMono.ttf size 12");
     }
 
     if (argc < 4) {
@@ -44,10 +42,10 @@ int main(int argc, char *argv[]) {
     auto white = al_map_rgb(255, 255, 255);
     auto red = al_map_rgb(255, 0, 0);
 
-    random_device rd;
-    default_random_engine re(rd());
-    uniform_int_distribution<int> x_rand(0, m.get_width() - 1);
-    uniform_int_distribution<int> y_rand(0, m.get_height() - 1);
+    std::random_device rd;
+    std::default_random_engine re(rd());
+    std::uniform_int_distribution<int> x_rand(0, m.get_width() - 1);
+    std::uniform_int_distribution<int> y_rand(0, m.get_height() - 1);
     std::uniform_real_distribution<> diff(0.10, 0.90);
 
     auto gen_rand_pos = [&]() {
@@ -55,19 +53,19 @@ int main(int argc, char *argv[]) {
             int x = x_rand(re);
             int y = y_rand(re);
             if (!m[y][x]) {
-                return make_pair((float)x + diff(re), (float)y + diff(re));
+                return std::make_pair((float)x + diff(re), (float)y + diff(re));
             }
         }
     };
 
-    auto n = stoul(argv[1]);
-    auto spf = stoul(argv[2]); // simulations pef frame
-    vector<thrust::pair<float, float>> units(n);
-    vector<thrust::pair<float, float>> ends(n);
+    auto n = std::stoul(argv[1]);
+    auto spf = std::stoul(argv[2]); // simulations pef frame
+    std::vector<thrust::pair<float, float>> units(n);
+    std::vector<thrust::pair<float, float>> ends(n);
     std::generate(units.begin(), units.end(), gen_rand_pos);
 
     simulation s(units.begin(), units.end(), m, m.get_width(), m.get_height());
-    vector<thrust::pair<int, int>> sectors_map(s.sm_width() * s.sm_height());
+    std::vector<thrust::pair<int, int>> sectors_map(s.sm_width() * s.sm_height());
 
     for (unsigned i = 0; i < n; ++i) {
         auto pos = gen_rand_pos();
@@ -75,9 +73,9 @@ int main(int argc, char *argv[]) {
         ends[i] = pos;
     }
 
-    unique_ptr<ALLEGRO_VERTEX[]> unit_pixels(nullptr);
+    std::unique_ptr<ALLEGRO_VERTEX[]> unit_pixels(nullptr);
     if (n >= 4000) {
-        unit_pixels = unique_ptr<ALLEGRO_VERTEX[]>(new ALLEGRO_VERTEX[n]);
+        unit_pixels = std::unique_ptr<ALLEGRO_VERTEX[]>(new ALLEGRO_VERTEX[n]);
     }
 
     fps_counter fps_display;
@@ -105,9 +103,9 @@ int main(int argc, char *argv[]) {
             }
 
             for (unsigned i = 0; i < n; ++i) {
-                if (!isnormal(units[i].first) || !isnormal(units[i].second)) {
+                if (!std::isnormal(units[i].first) || !std::isnormal(units[i].second)) {
                     printf("%f %f\n", units[i].first, units[i].second);
-                    throw logic_error("one of units doesnt have correct coordinares ");
+                    throw std::logic_error("one of units doesnt have correct coordinares ");
                 }
             }
 
