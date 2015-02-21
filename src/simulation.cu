@@ -118,7 +118,7 @@ __global__ void update_units_pos(
                             float x = units_ptr[j].first - pos.first;
                             float y = units_ptr[j].second - pos.second;
                             float d_reciprocal = rsqrt(x * x + y * y);
-                            float force = d_reciprocal - 0.3;
+                            float force = d_reciprocal + (0.5 * d_reciprocal * d_reciprocal) - 0.285;
                             if (force > 0) {
                                 f.first += -x * d_reciprocal * force;
                                 f.second += -y * d_reciprocal * force;
