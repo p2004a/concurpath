@@ -30,6 +30,7 @@ find_package(CUDA REQUIRED)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_35,code=sm_35)
+LIST(APPEND CUDA_NVCC_FLAGS --optimize 3)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -41,6 +42,7 @@ set(PROJECT_SRC_FILES
     src/map.cpp
     src/fpscounter.cpp
     src/simulation.cu
+    src/pathfinder.cu
     )
 
 cuda_add_executable(${BINARY_NAME} ${PROJECT_SRC_FILES})

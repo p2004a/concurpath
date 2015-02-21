@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
         }
     };
 
-    const int n = 256;
+    const int n = 1024;
     const int spf = 10; // simulations pef frame
     vector<thrust::pair<float, float>> units(n);
     vector<thrust::pair<float, float>> ends(n);
@@ -131,7 +131,6 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            // /#pragma omp parallel for
             for (int i = 0; i < n; ++i) {
                 auto const& p = units[i];
                 auto & pixel = unit_pixels[i];
@@ -140,7 +139,7 @@ int main(int argc, char *argv[]) {
                 pixel.y = p.second * scale;
                 pixel.color = green;
             }
-            al_draw_prim(unit_pixels.get(), NULL, NULL, 0, n, ALLEGRO_PRIM_POINT_LIST);
+            //al_draw_prim(unit_pixels.get(), NULL, NULL, 0, n, ALLEGRO_PRIM_POINT_LIST);
         }
 
         if (s.sm_height() < 25 && s.sm_width() < 25) {

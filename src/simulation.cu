@@ -8,6 +8,8 @@
 #include <thrust/sequence.h>
 #include <thrust/copy.h>
 #include <thrust/sort.h>
+#include <thrust/gather.h>
+#include <thrust/scatter.h>
 
 #include "simulation.h"
 
@@ -111,7 +113,7 @@ __global__ void update_units_pos(
             for (int dx = -1; dx <= 1; ++dx) {
                 if (sectors[dy + 1][dx + 1].first != -1) {
                     for (int i = 0; i < sectors[dy + 1][dx + 1].second; ++i) {
-                        int j = indexes[sectors[dy + 1][dx + 1].first + i];
+                        int j = sectors[dy + 1][dx + 1].first + i;
                         if (j != idx) {
                             float x = units_ptr[j].first - pos.first;
                             float y = units_ptr[j].second - pos.second;
@@ -174,6 +176,8 @@ void simulation::thread_func() {
 
     thrust::device_vector<thrust::pair<float, float> > d_units(units.begin(), units.end());
     thrust::device_vector<thrust::pair<float, float> > d_ends;
+    thrust::device_vector<thrust::pair<float, float> > d_units_copy(units.size());
+    thrust::device_vector<thrust::pair<float, float> > d_ends_copy(units.size());
     thrust::device_vector<thrust::pair<int, int> > d_sectors_map(sectors_map.size());
     thrust::device_vector<int> sectors(n), units_indexes(n), sectors_indexes(n+1);
     thrust::device_vector<bool> d_map(map.begin(), map.end());
@@ -202,10 +206,6 @@ void simulation::thread_func() {
             d_ends = ends;
         }
 
-        thrust::pair<float, float> *units_ptr = thrust::raw_pointer_cast(&d_units[0]);
-        thrust::pair<float, float> *ends_ptr = thrust::raw_pointer_cast(&d_ends[0]);
-        bool *map_ptr = thrust::raw_pointer_cast(&d_map[0]);
-
         struct timespec t1, t2;
         clock_gettime(CLOCK_MONOTONIC, &t1);
 
@@ -232,11 +232,20 @@ void simulation::thread_func() {
 
             int *units_indexes_ptr = thrust::raw_pointer_cast(&units_indexes[0]);
 
+            thrust::gather(units_indexes.begin(), units_indexes.end(), d_units.begin(), d_units_copy.begin());
+            thrust::gather(units_indexes.begin(), units_indexes.end(), d_ends.begin(), d_ends_copy.begin());
+
+            thrust::pair<float, float> *units_ptr = thrust::raw_pointer_cast(&d_units_copy[0]);
+            thrust::pair<float, float> *ends_ptr = thrust::raw_pointer_cast(&d_ends_copy[0]);
+            bool *map_ptr = thrust::raw_pointer_cast(&d_map[0]);
+
             dim3 grid_units((n + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK);
             dim3 block_units(THREADS_PER_BLOCK);
 
             update_units_pos<<<grid_units, block_units>>>(
                 units_ptr, ends_ptr, n, map_ptr, map_width, map_height, sectors_map_ptr, units_indexes_ptr);
+
+            thrust::scatter(d_units_copy.begin(), d_units_copy.end(), units_indexes.begin(), d_units.begin());
         }
 
         cudaDeviceSynchronize();
