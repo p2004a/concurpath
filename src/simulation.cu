@@ -21,6 +21,7 @@ int get_sector(int x, int y, int width) {
 
 __global__ void update_units_pos(
     thrust::pair<float, float> *units_ptr,
+    thrust::pair<float, float> *units_out_ptr,
     thrust::pair<float, float> *ends_ptr,
     unsigned n,
     bool *map,
@@ -143,11 +144,12 @@ __global__ void update_units_pos(
             const float absolute_displacement = 0.007;
             new_pos.first = pos.first + f.first * vec_d_reciprocal * absolute_displacement;
             new_pos.second = pos.second + f.second * vec_d_reciprocal * absolute_displacement;
+        } else {
+            new_pos = pos;
         }
     }
 
-    __syncthreads();
-    units_ptr[idx] = new_pos;
+    units_out_ptr[idx] = new_pos;
 }
 
 class sectors_functor {
@@ -185,6 +187,7 @@ void simulation::thread_func() {
     thrust::device_vector<thrust::pair<float, float> > d_units(units.begin(), units.end());
     thrust::device_vector<thrust::pair<float, float> > d_ends;
     thrust::device_vector<thrust::pair<float, float> > d_units_copy(units.size());
+    thrust::device_vector<thrust::pair<float, float> > d_units_copy2(units.size());
     thrust::device_vector<thrust::pair<float, float> > d_ends_copy(units.size());
     thrust::device_vector<thrust::pair<int, int> > d_sectors_map(sectors_map.size());
     thrust::device_vector<int> sectors(n), units_indexes(n), sectors_indexes(n+1);
@@ -244,6 +247,7 @@ void simulation::thread_func() {
             thrust::gather(units_indexes.begin(), units_indexes.end(), d_ends.begin(), d_ends_copy.begin());
 
             thrust::pair<float, float> *units_ptr = thrust::raw_pointer_cast(&d_units_copy[0]);
+            thrust::pair<float, float> *units_out_ptr = thrust::raw_pointer_cast(&d_units_copy2[0]);
             thrust::pair<float, float> *ends_ptr = thrust::raw_pointer_cast(&d_ends_copy[0]);
             bool *map_ptr = thrust::raw_pointer_cast(&d_map[0]);
 
@@ -251,9 +255,9 @@ void simulation::thread_func() {
             dim3 block_units(THREADS_PER_BLOCK);
 
             update_units_pos<<<grid_units, block_units>>>(
-                units_ptr, ends_ptr, n, map_ptr, map_width, map_height, sectors_map_ptr, units_indexes_ptr);
+                units_ptr, units_out_ptr, ends_ptr, n, map_ptr, map_width, map_height, sectors_map_ptr, units_indexes_ptr);
 
-            thrust::scatter(d_units_copy.begin(), d_units_copy.end(), units_indexes.begin(), d_units.begin());
+            thrust::scatter(d_units_copy2.begin(), d_units_copy2.end(), units_indexes.begin(), d_units.begin());
         }
 
         cudaDeviceSynchronize();
