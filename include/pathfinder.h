@@ -1,5 +1,9 @@
 #pragma once
 
+#define LINE_OF_SIGHT_DEBUG 1
+//#define NDEBUG
+
+#include <cassert>
 #include <pthread.h>
 
 #include <stdexcept>
@@ -9,6 +13,17 @@
 #include <thrust/device_vector.h>
 
 #define MAP_SECTOR_SIZE 4
+
+bool line_of_sight(
+    thrust::pair<int, int> begin,
+    thrust::pair<int, int> end,
+    thrust::device_vector<bool>::iterator map,
+    int map_width,
+    int map_height
+#ifdef LINE_OF_SIGHT_DEBUG
+    ,thrust::host_vector<int> &out
+#endif
+);
 
 class pathfinder_future {
     pthread_mutex_t mu;

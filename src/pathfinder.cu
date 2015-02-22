@@ -1,15 +1,156 @@
 #include <cstdio>
+#include <cstdlib>
 #include <time.h>
 
+#include <algorithm>
+
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/zip_iterator.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-#include <thrust/unique.h>
-#include <thrust/transform.h>
-#include <thrust/sequence.h>
 #include <thrust/copy.h>
-#include <thrust/sort.h>
+#include <thrust/logical.h>
+#include <thrust/swap.h>
+#include <thrust/fill.h>
 
 #include "pathfinder.h"
+
+class line_of_sight_functor {
+  public:
+    __host__ __device__
+    bool operator()(
+        thrust::tuple<
+            int,
+            thrust::pair<int, int>,
+            thrust::pair<int, int>,
+            thrust::device_vector<bool>::iterator,
+            int
+#ifdef LINE_OF_SIGHT_DEBUG
+            ,thrust::device_vector<int>::iterator
+#endif
+        > data
+    ) const {
+        int i = thrust::get<0>(data);
+        thrust::pair<int, int> begin = thrust::get<1>(data);
+        thrust::pair<int, int> end = thrust::get<2>(data);
+        thrust::device_vector<bool>::iterator map = thrust::get<3>(data);
+        int map_wdth = thrust::get<4>(data);
+
+#ifdef LINE_OF_SIGHT_DEBUG
+        thrust::device_vector<int>::iterator out = thrust::get<5>(data);
+#endif
+
+        int w = end.first - begin.first;
+        int h = end.second - begin.second;
+        int x_sign = 1;
+        int y_sign = 1;
+        if (w != 0) {
+            x_sign = w / abs(w);
+        }
+        if (h != 0) {
+            y_sign = h / abs(h);
+        }
+        w = w * x_sign;
+        h = h * y_sign;
+
+        if (w > h) {
+            // more horizontal
+            int xd = i * x_sign;
+            int yd = (h * i) / w * y_sign;
+
+            float line_left_y = (((i - 0.5) * h) / w + 0.5) * y_sign;
+            float line_right_y = (((i + 0.5) * h) / w + 0.5) * y_sign;
+            float corner_y = yd + y_sign;
+
+#ifdef LINE_OF_SIGHT_DEBUG
+            out[(begin.second + yd) * map_wdth + (begin.first + xd)] = fabs(line_left_y) <= fabs(corner_y) ? 1 : 2;
+            out[(begin.second + (yd + y_sign)) * map_wdth + (begin.first + xd)] = fabs(line_right_y) >= fabs(corner_y) ? 1 : 2;
+#endif
+
+            return (fabs(line_left_y) <= fabs(corner_y)
+                    && map[(begin.second + yd) * map_wdth + (begin.first + xd)])
+                || (fabs(line_right_y) >= fabs(corner_y)
+                    && map[(begin.second + (yd + y_sign)) * map_wdth + (begin.first + xd)]);
+        } else {
+            // more vertical
+            int yd = i * y_sign;
+            int xd = (w * i) / h * x_sign;
+
+            float line_top_x = (((i - 0.5) * w) / h + 0.5) * x_sign;
+            float line_bottom_x = (((i + 0.5) * w) / h + 0.5) * x_sign;
+            float corner_x = xd + x_sign;
+
+#ifdef LINE_OF_SIGHT_DEBUG
+            out[(begin.second + yd) * map_wdth + (begin.first + xd)] = fabs(line_top_x) <= fabs(corner_x) ? 1 : 2;
+            out[(begin.second + yd) * map_wdth + (begin.first + (xd + x_sign))] = fabs(line_bottom_x) >= fabs(corner_x) ? 1 : 2;
+#endif
+
+            return (fabs(line_top_x) <= fabs(corner_x)
+                    && map[(begin.second + yd) * map_wdth + (begin.first + xd)])
+                || (fabs(line_bottom_x) >= fabs(corner_x)
+                    && map[(begin.second + yd) * map_wdth + (begin.first + (xd + x_sign))]);
+        }
+    }
+};
+
+bool line_of_sight(
+    thrust::pair<int, int> begin,
+    thrust::pair<int, int> end,
+    thrust::device_vector<bool>::iterator map,
+    int map_width,
+    int map_height
+#ifdef LINE_OF_SIGHT_DEBUG
+    ,thrust::host_vector<int> &out
+#endif
+) {
+    assert(begin.first >= 0 && begin.first < map_width && begin.second >= 0 && begin.second < map_height);
+    assert(end.first >= 0 && end.first < map_width && end.second >= 0 && end.second < map_height);
+
+    thrust::constant_iterator<thrust::pair<int, int> > begin_iter(begin);
+    thrust::constant_iterator<thrust::pair<int, int> > end_iter(end);
+    thrust::constant_iterator<thrust::device_vector<bool>::iterator> map_iter(map);
+    thrust::constant_iterator<int> map_width_iter(map_width);
+
+#ifdef LINE_OF_SIGHT_DEBUG
+    assert(out.size() == map_width * map_height);
+    thrust::device_vector<int> d_out(out.begin(), out.end());
+    thrust::fill(d_out.begin(), d_out.end(), 0);
+    thrust::constant_iterator<thrust::device_vector<int>::iterator> out_iter(d_out.begin());
+#endif
+
+    int n = max(abs(begin.first - end.first), abs(begin.second - end.second)) + 1;
+
+    bool result = thrust::none_of(
+        thrust::make_zip_iterator(thrust::make_tuple(
+            thrust::make_counting_iterator(0),
+            begin_iter,
+            end_iter,
+            map_iter,
+            map_width_iter
+#ifdef LINE_OF_SIGHT_DEBUG
+            ,out_iter
+#endif
+        )),
+        thrust::make_zip_iterator(thrust::make_tuple(
+            thrust::make_counting_iterator(n),
+            begin_iter,
+            end_iter,
+            map_iter,
+            map_width_iter
+#ifdef LINE_OF_SIGHT_DEBUG
+            ,out_iter
+#endif
+        )),
+        line_of_sight_functor()
+    );
+
+#ifdef LINE_OF_SIGHT_DEBUG
+    thrust::copy(d_out.begin(), d_out.end(), out.begin());
+#endif
+
+    return result;
+}
 
 void pathfinder::thread_func() {
     const int THREADS_PER_BLOCK = 128;
@@ -39,7 +180,7 @@ void pathfinder::thread_func() {
         }
 
         thrust::device_vector<thrust::pair<int, int> > result;
-        
+
     }
     pthread_exit(NULL);
 }
