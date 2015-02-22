@@ -59,9 +59,9 @@ class line_of_sight_functor {
             int xd = i * x_sign;
             int yd = (h * i) / w * y_sign;
 
-            float line_left_y = (((i - 0.5) * h) / w + 0.5) * y_sign;
-            float line_right_y = (((i + 0.5) * h) / w + 0.5) * y_sign;
-            float corner_y = yd + y_sign;
+            double line_left_y = (((i - 0.5) * h) / w + 0.5) * y_sign;
+            double line_right_y = (((i + 0.5) * h) / w + 0.5) * y_sign;
+            double corner_y = yd + y_sign;
 
 #ifdef LINE_OF_SIGHT_DEBUG
             out[(begin.second + yd) * map_wdth + (begin.first + xd)] = fabs(line_left_y) <= fabs(corner_y) ? 1 : 2;
@@ -77,9 +77,9 @@ class line_of_sight_functor {
             int yd = i * y_sign;
             int xd = (w * i) / h * x_sign;
 
-            float line_top_x = (((i - 0.5) * w) / h + 0.5) * x_sign;
-            float line_bottom_x = (((i + 0.5) * w) / h + 0.5) * x_sign;
-            float corner_x = xd + x_sign;
+            double line_top_x = (((i - 0.5) * w) / h + 0.5) * x_sign;
+            double line_bottom_x = (((i + 0.5) * w) / h + 0.5) * x_sign;
+            double corner_x = xd + x_sign;
 
 #ifdef LINE_OF_SIGHT_DEBUG
             out[(begin.second + yd) * map_wdth + (begin.first + xd)] = fabs(line_top_x) <= fabs(corner_x) ? 1 : 2;
