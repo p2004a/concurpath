@@ -1,5 +1,6 @@
 #pragma once
 
+#include <vector>
 #include <stdexcept>
 #include <functional>
 #include <allegro5/allegro.h>
@@ -7,6 +8,10 @@
 class display {
     ALLEGRO_DISPLAY *dis;
     ALLEGRO_EVENT_QUEUE *event_queue;
+
+    std::vector<std::function<void(int,int,unsigned)>> mouse_down_que,
+                                                       mouse_up_que;
+    std::vector<std::function<void(int,int)>> mouse_move_que;
 
   public:
     static void init();
@@ -17,8 +22,35 @@ class display {
     ~display();
 
     template<class Func>
+    void mouse_down(Func f);
+    template<class Func>
+    void mouse_up(Func f);
+    template<class Func>
+    void mouse_move(Func f);
+    template<class Func>
     void run(Func f, int fps = 60);
 };
+
+template<class Func>
+void display::mouse_down(Func f) {
+    mouse_down_que.push_back([f](int x, int y, unsigned button) {
+        f(x, y, button);
+    });
+}
+
+template<class Func>
+void display::mouse_up(Func f) {
+    mouse_up_que.push_back([f](int x, int y, unsigned button) {
+        f(x, y, button);
+    });
+}
+
+template<class Func>
+void display::mouse_move(Func f) {
+    mouse_move_que.push_back([f](int x, int y) {
+        f(x, y);
+    });
+}
 
 template<class Func>
 void display::run(Func f, int fps) {
@@ -44,6 +76,25 @@ void display::run(Func f, int fps) {
             case ALLEGRO_EVENT_KEY_DOWN:
                 if (ev.keyboard.keycode == ALLEGRO_KEY_ESCAPE) {
                     end = true;
+                }
+                break;
+
+            case ALLEGRO_EVENT_MOUSE_AXES:
+            case ALLEGRO_EVENT_MOUSE_ENTER_DISPLAY:
+                for (auto const& i: mouse_move_que) {
+                    i(ev.mouse.x, ev.mouse.y);
+                }
+                break;
+
+            case ALLEGRO_EVENT_MOUSE_BUTTON_DOWN:
+                for (auto const& i: mouse_down_que) {
+                    i(ev.mouse.x, ev.mouse.y, ev.mouse.button);
+                }
+                break;
+
+            case ALLEGRO_EVENT_MOUSE_BUTTON_UP:
+                for (auto const& i: mouse_up_que) {
+                    i(ev.mouse.x, ev.mouse.y, ev.mouse.button);
                 }
                 break;
 
