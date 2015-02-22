@@ -131,7 +131,7 @@ class simulation {
         return local_done;
     }
 
-    void set_end(int i, std::pair<float, float> p) {
+    void set_end(int i, thrust::pair<float, float> p) {
         ends[i] = p;
         updated_ends = true;
     }

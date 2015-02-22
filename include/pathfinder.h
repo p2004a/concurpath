@@ -1,9 +1,9 @@
 #pragma once
 
-#define LINE_OF_SIGHT_DEBUG 1
 //#define NDEBUG
 
 #include <cassert>
+#include <cmath>
 #include <pthread.h>
 
 #include <stdexcept>
@@ -31,7 +31,7 @@ class pathfinder_future {
     volatile bool done;
 
   public:
-    pathfinder_future() {
+    pathfinder_future() : done(false) {
         pthread_mutex_init(&mu, NULL);
     }
 
@@ -53,7 +53,7 @@ class pathfinder_future {
         return local_done;
     }
 
-    thrust::host_vector<thrust::pair<int, int> > get() {
+    thrust::host_vector<thrust::pair<int, int> > get() const {
         return result;
     }
 };
@@ -62,7 +62,7 @@ class pathfinder {
     thrust::host_vector<bool> map;
     int map_width, map_height;
 
-    std::deque<thrust::pair<int, int> > que;
+    std::deque<thrust::pair<int, int> > begin_que, end_que;
     std::deque<pathfinder_future*> futures_que;
 
     pthread_t thread;
@@ -77,6 +77,14 @@ class pathfinder {
     }
 
     pathfinder(pathfinder const &) {};
+
+    thrust::pair<int, int> idx_to_pair(int idx) {
+        return thrust::make_pair(idx % map_width, idx / map_width);
+    }
+
+    double idx_distance(int a, int b) {
+        return hypot((double)(a % map_width - b % map_width), (double)(a / map_width - b / map_width));
+    };
   public:
 
     template<typename Arr2D>
@@ -101,12 +109,11 @@ class pathfinder {
             throw std::runtime_error("failed to create thread");
         }
 
-        pthread_cond_wait(&que_cv, &que_mutex);
         pthread_mutex_unlock(&que_mutex);
     }
 
     ~pathfinder() {
-        find_path(-1, -1);
+        find_path(thrust::make_pair(-1, -1), thrust::make_pair(-1, -1));
 
         int res = pthread_join(thread, NULL);
         if (res) {
@@ -117,10 +124,11 @@ class pathfinder {
         pthread_cond_destroy(&que_cv);
     }
 
-    pathfinder_future *find_path(int x, int y) {
+    pathfinder_future *find_path(thrust::pair<int, int> a, thrust::pair<int, int> b) {
         pathfinder_future *future = new pathfinder_future();
         pthread_mutex_lock(&que_mutex);
-        que.push_back(thrust::pair<int, int>(x, y));
+        begin_que.push_back(a);
+        end_que.push_back(b);
         futures_que.push_back(future);
         pthread_cond_signal(&que_cv);
         pthread_mutex_unlock(&que_mutex);

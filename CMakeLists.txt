@@ -5,7 +5,7 @@ set(BINARY_NAME "path")
 
 project(${PROJECT_NAME} C CXX)
 
-add_definitions(-std=c++14 -O3 -Wall -Wextra)
+add_definitions(-std=c++14 -O2 -Wall -Wextra)
 
 set(${PROJECT_NAME}_LINK_LIBS )
 
@@ -30,7 +30,7 @@ find_package(CUDA REQUIRED)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30)
 LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_35,code=sm_35)
-LIST(APPEND CUDA_NVCC_FLAGS --optimize 3)
+LIST(APPEND CUDA_NVCC_FLAGS --optimize 2)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include

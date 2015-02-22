@@ -1,6 +1,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <list>
 #include <algorithm>
 #include <random>
 #include <stdexcept>
@@ -14,6 +15,7 @@
 #include "map.h"
 #include "fpscounter.h"
 #include "simulation.h"
+#include "pathfinder.h"
 
 int main(int argc, char *argv[]) {
     display::init();
@@ -53,24 +55,32 @@ int main(int argc, char *argv[]) {
             int x = x_rand(re);
             int y = y_rand(re);
             if (!m[y][x]) {
-                return std::make_pair((float)x + diff(re), (float)y + diff(re));
+                return thrust::make_pair((float)x + diff(re), (float)y + diff(re));
             }
         }
     };
 
     auto n = std::stoul(argv[1]);
     auto spf = std::stoul(argv[2]); // simulations pef frame
+
     std::vector<thrust::pair<float, float>> units(n);
     std::vector<thrust::pair<float, float>> ends(n);
+    std::vector<thrust::host_vector<thrust::pair<int, int> > > paths(n);
+    std::vector<pathfinder_future*> futures(n);
+    std::fill(futures.begin(), futures.end(), nullptr);
+
     std::generate(units.begin(), units.end(), gen_rand_pos);
+    std::copy(units.begin(), units.end(), ends.begin());
 
     simulation s(units.begin(), units.end(), m, m.get_width(), m.get_height());
     std::vector<thrust::pair<int, int>> sectors_map(s.sm_width() * s.sm_height());
 
+    pathfinder pf(m, m.get_width(), m.get_height());
+
     for (unsigned i = 0; i < n; ++i) {
         auto pos = gen_rand_pos();
-        s.set_end(i, pos);
-        ends[i] = pos;
+        futures[i] = pf.find_path(units[i], pos);
+        s.set_end(i, ends[i]);
     }
 
     std::unique_ptr<ALLEGRO_VERTEX[]> unit_pixels(nullptr);
@@ -86,26 +96,34 @@ int main(int argc, char *argv[]) {
         if (s.is_done()) {
             fps_simulation.tick();
             last_kernel_time = s.last_kernel_time();
-            units.clear();
-            sectors_map.clear();
-            std::copy(s.u_begin(), s.u_end(), back_inserter(units));
-            std::copy(s.sm_begin(), s.sm_end(), back_inserter(sectors_map));
+            std::copy(s.u_begin(), s.u_end(), units.begin());
+            std::copy(s.sm_begin(), s.sm_end(), sectors_map.begin());
 
             for (unsigned i = 0; i < n; ++i) {
                 if ((int)units[i].first == (int)ends[i].first
                   && (int)units[i].second == (int)ends[i].second) {
-                    {
-                        auto pos = gen_rand_pos();
+                    if (futures[i] != nullptr && futures[i]->is_done()) {
+                        paths[i] = futures[i]->get();
+                        delete futures[i];
+                        futures[i] = nullptr;
+                    }
+                    if (paths[i].size() > 0) {
+                        thrust::pair<float, float> pos = paths[i].back();
+                        paths[i].pop_back();
+                        pos.first += 0.5;
+                        pos.second += 0.5;
                         s.set_end(i, pos);
                         ends[i] = pos;
+                    } else if (futures[i] == nullptr) {
+                        auto pos = gen_rand_pos();
+                        futures[i] = pf.find_path(units[i], pos);
                     }
                 }
             }
 
             for (unsigned i = 0; i < n; ++i) {
                 if (!std::isnormal(units[i].first) || !std::isnormal(units[i].second)) {
-                    printf("%f %f\n", units[i].first, units[i].second);
-                    throw std::logic_error("one of units doesnt have correct coordinares ");
+                    printf("%d u:%f %f e:%f %f\n", i, units[i].first, units[i].second, ends[i].first, ends[i].second);
                 }
             }
 
@@ -119,13 +137,19 @@ int main(int argc, char *argv[]) {
         if (n < 4000) {
             for (unsigned i = 0; i < n; ++i) {
                 auto p = units[i];
-                auto e = ends[i];
                 if (0.2 * scale < 1.0) {
                     al_draw_pixel(p.first * scale, p.second * scale, green);
                 } else {
                     al_draw_filled_circle(p.first * scale, p.second * scale, 0.2 * scale, green);
-                    if (n <= 64) {
-                        al_draw_line(p.first * scale, p.second * scale, e.first * scale, e.second * scale, yellow, 1.0);
+                }
+                if (n <= 64) {
+                    al_draw_line(p.first * scale, p.second * scale, ends[i].first * scale, ends[i].second * scale, yellow, 1.0);
+                    auto prev_e = ends[i];
+                    for (auto eit = paths[i].rbegin(); eit != paths[i].rend(); ++eit) {
+                        auto e = *eit;
+                        al_draw_line(prev_e.first * scale, prev_e.second * scale, (e.first + 0.5) * scale, (e.second + 0.5) * scale, yellow, 1.0);
+                        prev_e.first = e.first + 0.5;
+                        prev_e.second = e.second + 0.5;
                     }
                 }
             }
