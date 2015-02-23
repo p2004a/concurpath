@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     simulation s(units.begin(), units.end(), m, m.get_width(), m.get_height());
     std::vector<thrust::pair<int, int>> sectors_map(s.sm_width() * s.sm_height());
 
-    pathfinder pf(m, m.get_width(), m.get_height());
+    pathfinder pf(m, m.get_width(), m.get_height(), 6);
 
     for (unsigned i = 0; i < n; ++i) {
         auto pos = gen_rand_pos();

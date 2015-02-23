@@ -185,8 +185,6 @@ void pathfinder::thread_func() {
         clock_gettime(CLOCK_MONOTONIC, &t2);
         unsigned long long diff = (long long)(t2.tv_sec - t1.tv_sec) * 1000LL + (t2.tv_nsec - t1.tv_nsec) / 1000000;
 
-        printf("vis: %d lsc: %d seg: %lu time: %llums\n", num, lsc, result.size(), diff);
-
         future->set_result(result);
     }
     pthread_exit(NULL);

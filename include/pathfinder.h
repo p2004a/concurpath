@@ -65,7 +65,7 @@ class pathfinder {
     std::deque<thrust::pair<int, int> > begin_que, end_que;
     std::deque<pathfinder_future*> futures_que;
 
-    pthread_t thread;
+    thrust::host_vector<pthread_t> threads;
     pthread_mutex_t que_mutex;
     pthread_cond_t que_cv;
     unsigned long long kernel_time;
@@ -88,7 +88,7 @@ class pathfinder {
   public:
 
     template<typename Arr2D>
-    pathfinder(Arr2D const& arr, int w, int h)
+    pathfinder(Arr2D const& arr, int w, int h, int num_threads)
       : map(w * h), map_width(w), map_height(h) {
 
         #pragma omp parallel for
@@ -103,21 +103,36 @@ class pathfinder {
 
         pthread_mutex_lock(&que_mutex);
 
-        int res = pthread_create(&thread, NULL, &pathfinder::thread_func_helper, (void *)this);
-        if (res) {
-            pthread_mutex_unlock(&que_mutex);
-            throw std::runtime_error("failed to create thread");
+        threads.resize(num_threads);
+        for (int i = 0; i < num_threads; ++i) {
+            int res = pthread_create(&threads[i], NULL, &pathfinder::thread_func_helper, (void *)this);
+            if (res) {
+                pthread_mutex_unlock(&que_mutex);
+                throw std::runtime_error("failed to create thread");
+            }
         }
 
         pthread_mutex_unlock(&que_mutex);
     }
 
     ~pathfinder() {
-        find_path(thrust::make_pair(-1, -1), thrust::make_pair(-1, -1));
+        pthread_mutex_lock(&que_mutex);
+        begin_que.clear();
+        end_que.clear();
+        futures_que.clear();
+        for (unsigned i = 0; i < threads.size(); ++i) {
+            begin_que.push_back(thrust::make_pair(-1, -1));
+            end_que.push_back(thrust::make_pair(-1, -1));
+            futures_que.push_back(nullptr);
+        }
+        pthread_cond_broadcast(&que_cv);
+        pthread_mutex_unlock(&que_mutex);
 
-        int res = pthread_join(thread, NULL);
-        if (res) {
-            throw std::runtime_error("failed to join thread");
+        for (unsigned i = 0; i < threads.size(); ++i) {
+            int res = pthread_join(threads[i], NULL);
+            if (res) {
+                throw std::runtime_error("failed to join thread");
+            }
         }
 
         pthread_mutex_destroy(&que_mutex);
