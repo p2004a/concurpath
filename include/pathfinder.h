@@ -25,6 +25,17 @@ bool line_of_sight_gpu(
 #endif
 );
 
+bool line_of_sight_cpu(
+    thrust::pair<int, int> begin,
+    thrust::pair<int, int> end,
+    thrust::host_vector<bool>::iterator map,
+    int map_width,
+    int map_height
+#ifdef LINE_OF_SIGHT_DEBUG
+    ,thrust::host_vector<int> &out
+#endif
+);
+
 class pathfinder_future {
     pthread_mutex_t mu;
     thrust::host_vector<thrust::pair<int, int> > result;

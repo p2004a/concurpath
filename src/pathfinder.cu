@@ -144,6 +144,61 @@ bool line_of_sight_gpu(
     return result;
 }
 
+bool line_of_sight_cpu(
+    thrust::pair<int, int> begin,
+    thrust::pair<int, int> end,
+    thrust::host_vector<bool>::iterator map,
+    int map_width,
+    int map_height
+#ifdef LINE_OF_SIGHT_DEBUG
+    ,thrust::host_vector<int> &out
+#endif
+) {
+#ifdef LINE_OF_SIGHT_DEBUG
+    thrust::fill(out.begin(), out.end(), 0);
+#endif
+
+    const bool s = (fabs(end.second - begin.second) > fabs(end.first - begin.first));
+    if (s) {
+        thrust::swap(begin.first, begin.second);
+        thrust::swap(end.first, end.second);
+    }
+
+    if (begin.first > end.first) {
+        thrust::swap(begin, end);
+    }
+
+    const float dx = end.first - begin.first;
+    const float dy = fabs(end.second - begin.second);
+
+    float error = dx / 2.0f;
+    const int ystep = (begin.second < end.second) ? 1 : -1;
+    int y = (int)begin.second;
+
+    for (int x = (int)begin.first; x <= (int)end.first; x++) {
+#ifdef LINE_OF_SIGHT_DEBUG
+        out[IDX(x, y, s)] = 1;
+        if (map[IDX(x, y, s)]) {
+            return false;
+        }
+#endif
+
+        error -= dy;
+        if (error < -(dy / 2)) {
+            y += ystep;
+#ifdef LINE_OF_SIGHT_DEBUG
+            out[IDX(x, y, s)] = 1;
+            if (map[IDX(x, y, s)]) {
+                return false;
+            }
+#endif
+            error += dx;
+        }
+    }
+
+    return true;
+}
+
 void pathfinder::thread_func() {
     const int THREADS_PER_BLOCK = 128;
 
