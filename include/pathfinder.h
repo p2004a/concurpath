@@ -14,7 +14,7 @@
 
 #define MAP_SECTOR_SIZE 4
 
-bool line_of_sight(
+bool line_of_sight_gpu(
     thrust::pair<int, int> begin,
     thrust::pair<int, int> end,
     thrust::device_vector<bool>::iterator map,

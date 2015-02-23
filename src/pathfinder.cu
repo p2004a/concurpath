@@ -16,6 +16,9 @@
 
 #include "pathfinder.h"
 
+#define _IDX(x, y) ((int)(y) * map_width + (int)(x))
+#define IDX(x, y, ...) ((__VA_ARGS__ + 0) ? _IDX(y, x) : _IDX(x, y))
+
 class line_of_sight_functor {
   public:
     __host__ __device__
@@ -35,7 +38,7 @@ class line_of_sight_functor {
         thrust::pair<int, int> begin = thrust::get<1>(data);
         thrust::pair<int, int> end = thrust::get<2>(data);
         thrust::device_vector<bool>::iterator map = thrust::get<3>(data);
-        int map_wdth = thrust::get<4>(data);
+        int map_width = thrust::get<4>(data);
 
 #ifdef LINE_OF_SIGHT_DEBUG
         thrust::device_vector<int>::iterator out = thrust::get<5>(data);
@@ -43,6 +46,14 @@ class line_of_sight_functor {
 
         int w = end.first - begin.first;
         int h = end.second - begin.second;
+
+        bool s = abs(w) > abs(h);
+        if (s) {
+            thrust::swap(w, h);
+            thrust::swap(begin.first, begin.second);
+            thrust::swap(end.first, end.second);
+        }
+
         int x_sign = 1;
         int y_sign = 1;
         if (w != 0) {
@@ -54,47 +65,28 @@ class line_of_sight_functor {
         w = w * x_sign;
         h = h * y_sign;
 
-        if (w > h) {
-            // more horizontal
-            int xd = i * x_sign;
-            int yd = (h * i) / w * y_sign;
+        int yd = i * y_sign;
+        int xd = (w * i) / h * x_sign;
 
-            double line_left_y = (((i - 0.5) * h) / w + 0.5) * y_sign;
-            double line_right_y = (((i + 0.5) * h) / w + 0.5) * y_sign;
-            double corner_y = yd + y_sign;
+        double line_top_x = (((i - 0.5) * w) / h + 0.5) * x_sign;
+        double line_bottom_x = (((i + 0.5) * w) / h + 0.5) * x_sign;
+        double corner_x = xd + x_sign;
 
-#ifdef LINE_OF_SIGHT_DEBUG
-            out[(begin.second + yd) * map_wdth + (begin.first + xd)] = fabs(line_left_y) <= fabs(corner_y) ? 1 : 2;
-            out[(begin.second + (yd + y_sign)) * map_wdth + (begin.first + xd)] = fabs(line_right_y) >= fabs(corner_y) ? 1 : 2;
-#endif
-
-            return (fabs(line_left_y) <= fabs(corner_y)
-                    && map[(begin.second + yd) * map_wdth + (begin.first + xd)])
-                || (fabs(line_right_y) >= fabs(corner_y)
-                    && map[(begin.second + (yd + y_sign)) * map_wdth + (begin.first + xd)]);
-        } else {
-            // more vertical
-            int yd = i * y_sign;
-            int xd = (w * i) / h * x_sign;
-
-            double line_top_x = (((i - 0.5) * w) / h + 0.5) * x_sign;
-            double line_bottom_x = (((i + 0.5) * w) / h + 0.5) * x_sign;
-            double corner_x = xd + x_sign;
+        bool result;
 
 #ifdef LINE_OF_SIGHT_DEBUG
-            out[(begin.second + yd) * map_wdth + (begin.first + xd)] = fabs(line_top_x) <= fabs(corner_x) ? 1 : 2;
-            out[(begin.second + yd) * map_wdth + (begin.first + (xd + x_sign))] = fabs(line_bottom_x) >= fabs(corner_x) ? 1 : 2;
+        out[IDX(begin.first + xd, begin.second + yd, s)] = fabs(line_top_x) <= fabs(corner_x) ? 1 : 2;
+        out[IDX(begin.first + xd + x_sign, begin.second + yd, s)] = fabs(line_bottom_x) >= fabs(corner_x) ? 1 : 2;
 #endif
-
-            return (fabs(line_top_x) <= fabs(corner_x)
-                    && map[(begin.second + yd) * map_wdth + (begin.first + xd)])
-                || (fabs(line_bottom_x) >= fabs(corner_x)
-                    && map[(begin.second + yd) * map_wdth + (begin.first + (xd + x_sign))]);
-        }
+        result = (fabs(line_top_x) <= fabs(corner_x)
+                  && map[IDX(begin.first + xd, begin.second + yd, s)])
+              || (fabs(line_bottom_x) >= fabs(corner_x)
+                  && map[IDX(begin.first + xd + x_sign, begin.second + yd, s)]);
+        return result;
     }
 };
 
-bool line_of_sight(
+bool line_of_sight_gpu(
     thrust::pair<int, int> begin,
     thrust::pair<int, int> end,
     thrust::device_vector<bool>::iterator map,
