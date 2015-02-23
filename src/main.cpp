@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 
         if (map_mouse_pos != map_mouse_begin) {
             auto c = green;
-            if (!line_of_sight(map_mouse_begin, map_mouse_pos, d_map_vector.begin(), m.get_width(), m.get_height(), out_vector)) {
+            if (!line_of_sight_cpu(map_mouse_begin, map_mouse_pos, map_vector.begin(), m.get_width(), m.get_height(), out_vector)) {
                 c = red;
             }
             for (int y = 0; y < m.get_height(); ++y) {
