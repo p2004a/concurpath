@@ -19,6 +19,7 @@
 #define UNUSED __attribute__((__unused__))
 
 int main(int argc, char *argv[]) {
+#ifdef LINE_OF_SIGHT_DEBUG
     display::init();
 
     auto font_average_mono_20 = al_load_ttf_font("fonts/AverageMono.ttf", -20, 0);
@@ -90,7 +91,7 @@ int main(int argc, char *argv[]) {
 
         if (map_mouse_pos != map_mouse_begin) {
             auto c = green;
-            if (!line_of_sight_cpu(map_mouse_begin, map_mouse_pos, map_vector.begin(), m.get_width(), m.get_height(), out_vector)) {
+            if (!line_of_sight_gpu(map_mouse_begin, map_mouse_pos, d_map_vector.begin(), m.get_width(), m.get_height(), out_vector)) {
                 c = red;
             }
             for (int y = 0; y < m.get_height(); ++y) {
@@ -114,5 +115,43 @@ int main(int argc, char *argv[]) {
 
         al_draw_textf(font_average_mono_20, white, width - 10, 10, ALLEGRO_ALIGN_RIGHT, "%.2f fps", fps_display.get());
     });
+
+#else
+    printf("Benchmark\n");
+
+    const int n = 2000;
+    const int samples = 1000;
+    struct timespec t1, t2;
+
+    thrust::host_vector<bool> map_vector((n * 3) * (n * 4));
+    thrust::fill(map_vector.begin(), map_vector.end(), false);
+    thrust::device_vector<bool> d_map_vector(map_vector.begin(), map_vector.end());
+
+    for (int i = 4; i < n; i += 3) {
+        int map_width = i * 4;
+        int map_height = i * 3;
+
+        auto begin = thrust::make_pair(0, 0);
+        auto end = thrust::make_pair(map_width - 1, map_height - 1);
+
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t1);
+        for (int j = 0; j < samples; ++j) {
+            assert(line_of_sight_cpu(begin, end, map_vector.begin(), map_width, map_height));
+        }
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t2);
+        unsigned long long diff_cpu = (long long)(t2.tv_sec - t1.tv_sec) * 1000000000LL + (t2.tv_nsec - t1.tv_nsec);
+
+        clock_gettime(CLOCK_MONOTONIC, &t1);
+        for (int j = 0; j < samples; ++j) {
+            assert(line_of_sight_gpu(begin, end, d_map_vector.begin(), map_width, map_height));
+        }
+        clock_gettime(CLOCK_MONOTONIC, &t2);
+        unsigned long long diff_gpu = (long long)(t2.tv_sec - t1.tv_sec) * 1000000000LL + (t2.tv_nsec - t1.tv_nsec);
+
+        printf("%3d cpu:%lluns gpu:%lluns\n", i * 4, diff_cpu / samples, diff_gpu / samples);
+    }
+
+#endif
+
     return 0;
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#define LINE_OF_SIGHT_DEBUG 1
+//#define LINE_OF_SIGHT_DEBUG 1
 //#define NDEBUG
 
 #include <cassert>
