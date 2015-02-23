@@ -154,6 +154,9 @@ bool line_of_sight_cpu(
     ,thrust::host_vector<int> &out
 #endif
 ) {
+    assert(begin.first >= 0 && begin.first < map_width && begin.second >= 0 && begin.second < map_height);
+    assert(end.first >= 0 && end.first < map_width && end.second >= 0 && end.second < map_height);
+
 #ifdef LINE_OF_SIGHT_DEBUG
     thrust::fill(out.begin(), out.end(), 0);
 #endif
