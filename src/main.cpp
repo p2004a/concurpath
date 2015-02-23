@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
 #else
     printf("Benchmark\n");
 
-    const int n = 2000;
+    const int n = 5000;
     const int samples = 1000;
     struct timespec t1, t2;
 
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
     thrust::fill(map_vector.begin(), map_vector.end(), false);
     thrust::device_vector<bool> d_map_vector(map_vector.begin(), map_vector.end());
 
-    for (int i = 4; i < n; i += 3) {
+    for (int i = 10; i < n; i += 50) {
         int map_width = i * 4;
         int map_height = i * 3;
 

@@ -18,52 +18,45 @@
 
 #define _IDX(x, y) ((int)(y) * map_width + (int)(x))
 #define IDX(x, y, ...) ((__VA_ARGS__ + 0) ? _IDX(y, x) : _IDX(x, y))
+#define LINE_OF_SIGHT_KERNEL_ITERATIONS 4
 
-class line_of_sight_functor {
-  public:
-    __host__ __device__
-    bool operator()(
-        thrust::tuple<
-            int,
-            thrust::pair<int, int>,
-            thrust::pair<int, int>,
-            thrust::device_vector<bool>::iterator,
-            int
+__global__
+void line_of_sight_kernel(
+    int n,
+    thrust::pair<int, int> begin,
+    thrust::pair<int, int> end,
+    bool *map,
+    bool *result,
+    int map_width
 #ifdef LINE_OF_SIGHT_DEBUG
-            ,thrust::device_vector<int>::iterator
+    ,int *out
 #endif
-        > data
-    ) const {
-        int i = thrust::get<0>(data);
-        thrust::pair<int, int> begin = thrust::get<1>(data);
-        thrust::pair<int, int> end = thrust::get<2>(data);
-        thrust::device_vector<bool>::iterator map = thrust::get<3>(data);
-        int map_width = thrust::get<4>(data);
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-#ifdef LINE_OF_SIGHT_DEBUG
-        thrust::device_vector<int>::iterator out = thrust::get<5>(data);
-#endif
+    int w = end.first - begin.first;
+    int h = end.second - begin.second;
 
-        int w = end.first - begin.first;
-        int h = end.second - begin.second;
+    bool s = abs(w) > abs(h);
+    if (s) {
+        thrust::swap(w, h);
+        thrust::swap(begin.first, begin.second);
+        thrust::swap(end.first, end.second);
+    }
 
-        bool s = abs(w) > abs(h);
-        if (s) {
-            thrust::swap(w, h);
-            thrust::swap(begin.first, begin.second);
-            thrust::swap(end.first, end.second);
-        }
+    int x_sign = 1;
+    int y_sign = 1;
+    if (w != 0) {
+        x_sign = w / abs(w);
+    }
+    if (h != 0) {
+        y_sign = h / abs(h);
+    }
+    w = w * x_sign;
+    h = h * y_sign;
 
-        int x_sign = 1;
-        int y_sign = 1;
-        if (w != 0) {
-            x_sign = w / abs(w);
-        }
-        if (h != 0) {
-            y_sign = h / abs(h);
-        }
-        w = w * x_sign;
-        h = h * y_sign;
+    for (int j = 0; j < LINE_OF_SIGHT_KERNEL_ITERATIONS && idx * LINE_OF_SIGHT_KERNEL_ITERATIONS + j < n; ++j) {
+        int i = idx * LINE_OF_SIGHT_KERNEL_ITERATIONS + j;
 
         int yd = i * y_sign;
         int xd = (w * i) / h * x_sign;
@@ -72,19 +65,19 @@ class line_of_sight_functor {
         double line_bottom_x = (((i + 0.5) * w) / h + 0.5) * x_sign;
         double corner_x = xd + x_sign;
 
-        bool result;
-
 #ifdef LINE_OF_SIGHT_DEBUG
         out[IDX(begin.first + xd, begin.second + yd, s)] = fabs(line_top_x) <= fabs(corner_x) ? 1 : 2;
         out[IDX(begin.first + xd + x_sign, begin.second + yd, s)] = fabs(line_bottom_x) >= fabs(corner_x) ? 1 : 2;
 #endif
-        result = (fabs(line_top_x) <= fabs(corner_x)
-                  && map[IDX(begin.first + xd, begin.second + yd, s)])
-              || (fabs(line_bottom_x) >= fabs(corner_x)
-                  && map[IDX(begin.first + xd + x_sign, begin.second + yd, s)]);
-        return result;
+
+        if ((fabs(line_top_x) <= fabs(corner_x) && map[IDX(begin.first + xd, begin.second + yd, s)])
+         || (fabs(line_bottom_x) >= fabs(corner_x) && map[IDX(begin.first + xd + x_sign, begin.second + yd, s)])) {
+            result[idx] = true;
+            return;
+        }
     }
-};
+    result[idx] = false;
+}
 
 bool line_of_sight_gpu(
     thrust::pair<int, int> begin,
@@ -96,52 +89,42 @@ bool line_of_sight_gpu(
     ,thrust::host_vector<int> &out
 #endif
 ) {
+    static thrust::device_vector<bool> result(map_width + map_height);
+
     assert(begin.first >= 0 && begin.first < map_width && begin.second >= 0 && begin.second < map_height);
     assert(end.first >= 0 && end.first < map_width && end.second >= 0 && end.second < map_height);
-
-    thrust::constant_iterator<thrust::pair<int, int> > begin_iter(begin);
-    thrust::constant_iterator<thrust::pair<int, int> > end_iter(end);
-    thrust::constant_iterator<thrust::device_vector<bool>::iterator> map_iter(map);
-    thrust::constant_iterator<int> map_width_iter(map_width);
 
 #ifdef LINE_OF_SIGHT_DEBUG
     assert(out.size() == map_width * map_height);
     thrust::device_vector<int> d_out(out.begin(), out.end());
     thrust::fill(d_out.begin(), d_out.end(), 0);
-    thrust::constant_iterator<thrust::device_vector<int>::iterator> out_iter(d_out.begin());
+    int *out_ptr = thrust::raw_pointer_cast(&d_out[0]);
 #endif
 
     int n = max(abs(begin.first - end.first), abs(begin.second - end.second)) + 1;
+    int num_threads = (n + LINE_OF_SIGHT_KERNEL_ITERATIONS - 1) / LINE_OF_SIGHT_KERNEL_ITERATIONS;
 
-    bool result = thrust::none_of(
-        thrust::make_zip_iterator(thrust::make_tuple(
-            thrust::make_counting_iterator(0),
-            begin_iter,
-            end_iter,
-            map_iter,
-            map_width_iter
+    const int THREADS_PER_BLOCK = 64;
+
+    dim3 grid_units((num_threads + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK);
+    dim3 block_units(THREADS_PER_BLOCK);
+
+    bool *map_ptr = thrust::raw_pointer_cast(&(*map));
+    bool *result_ptr = thrust::raw_pointer_cast(&result[0]);
+
+    line_of_sight_kernel<<<grid_units, block_units>>>(
+        n, begin, end, map_ptr, result_ptr, map_width
 #ifdef LINE_OF_SIGHT_DEBUG
-            ,out_iter
+        ,out_ptr
 #endif
-        )),
-        thrust::make_zip_iterator(thrust::make_tuple(
-            thrust::make_counting_iterator(n),
-            begin_iter,
-            end_iter,
-            map_iter,
-            map_width_iter
-#ifdef LINE_OF_SIGHT_DEBUG
-            ,out_iter
-#endif
-        )),
-        line_of_sight_functor()
-    );
+        );
+
 
 #ifdef LINE_OF_SIGHT_DEBUG
     thrust::copy(d_out.begin(), d_out.end(), out.begin());
 #endif
 
-    return result;
+    return thrust::none_of(result.begin(), result.begin() + num_threads, thrust::identity<bool>());
 }
 
 bool line_of_sight_cpu(
@@ -181,20 +164,20 @@ bool line_of_sight_cpu(
     for (int x = (int)begin.first; x <= (int)end.first; x++) {
 #ifdef LINE_OF_SIGHT_DEBUG
         out[IDX(x, y, s)] = 1;
+#endif
         if (map[IDX(x, y, s)]) {
             return false;
         }
-#endif
 
         error -= dy;
         if (error < -(dy / 2)) {
             y += ystep;
 #ifdef LINE_OF_SIGHT_DEBUG
             out[IDX(x, y, s)] = 1;
+#endif
             if (map[IDX(x, y, s)]) {
                 return false;
             }
-#endif
             error += dx;
         }
     }
