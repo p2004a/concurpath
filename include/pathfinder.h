@@ -17,7 +17,7 @@
 bool line_of_sight(
     thrust::pair<int, int> begin,
     thrust::pair<int, int> end,
-    thrust::device_vector<bool>::iterator map,
+    thrust::host_vector<bool>::iterator map,
     int map_width,
     int map_height
 #ifdef LINE_OF_SIGHT_DEBUG

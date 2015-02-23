@@ -141,7 +141,7 @@ __global__ void update_units_pos(
         float a = f.first * f.first + f.second * f.second;
         if (a > 0.0) {
             float vec_d_reciprocal = rsqrt(a);
-            const float absolute_displacement = 0.007;
+            const float absolute_displacement = 0.05;
             new_pos.first = pos.first + f.first * vec_d_reciprocal * absolute_displacement;
             new_pos.second = pos.second + f.second * vec_d_reciprocal * absolute_displacement;
         } else {

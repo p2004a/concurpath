@@ -42,7 +42,7 @@ set(PROJECT_SRC_FILES
     src/map.cpp
     src/fpscounter.cpp
     src/simulation.cu
-    src/pathfinder.cu
+    src/pathfinder.cpp
     )
 
 cuda_add_executable(${BINARY_NAME} ${PROJECT_SRC_FILES})
